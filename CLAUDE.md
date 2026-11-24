@@ -8,11 +8,7 @@
 
 | 경로 | 내용 |
 |---|---|
-| `series/characters.md` | 캐릭터 설정(외형·말투·관계). **컷을 그리기 전에 반드시 읽는다.** |
-| `series/style.md` | 그림체·컷 구성·말풍선·색 규칙, 캡션/고정댓글 톤 |
-| `series/plan.md` | 연재 로드맵(앞으로의 회차 주제) |
-| `series/scripts/NNN.md` | (선택) 미리 써 둔 회차 대본. 있으면 그대로 사용 |
-| `series/feedback.md` | 인사이트 기반 누적 피드백. 대본 쓸 때 반영 |
+| `series/*.md` | claude.ai 「나물려 연재」 프로젝트의 기존 MD(캐릭터·대본·피드백 등)를 **그대로 옮겨 둔 것**. 파일 이름·구성은 사용자가 정한 대로 따르고, 새 설정 파일을 만들지 않는다. |
 | `episodes/NNN/` | 회차별 산출물: `episode.json`, `panels/*.html`, `out/*.jpg`, `out/reel.mp4`, `published.json` |
 | `insights/YYYY-MM-DD.json` | 매일 수집한 인사이트 원본 |
 | `assets/toon.css`, `assets/fonts/` | 공통 스타일, 한글 폰트 |
@@ -25,17 +21,16 @@
    (사용자가 밤사이 수정했을 수 있다).
 2. **인사이트 수집**: `python3 tools/ig.py insights` → `insights/<오늘>.json`.
    실패하면 오류를 기록하고 계속 진행한다(업로드가 우선).
-3. **피드백 반영**: 인사이트를 분석해 `series/feedback.md` 맨 위에 오늘 날짜 섹션을 추가한다.
+3. **피드백 반영**: 인사이트를 분석해 `series/` 안의 기존 피드백 MD(사용자가 쓰던 파일)에 오늘 날짜 섹션을 추가한다.
    - 회차별 도달·조회·저장·공유·댓글, 릴스 평균 시청 시간 비교
    - 잘 된 요소 / 안 된 요소 가설, **다음 회차에 적용할 구체적 지시 1~3개**
    - 캐릭터·세계관 설정 자체를 바꾸는 판단은 하지 않는다(그건 사용자 몫). 제안만 적는다.
 4. **회차 번호 결정**: `published.json`이 있는 가장 큰 `episodes/NNN` + 1.
    같은 번호 폴더가 이미 있고 `published.json`이 없으면 이전 실행이 중간에 실패한 것이므로 그 회차를 이어서 완성한다.
-5. **대본**: `series/scripts/NNN.md`가 있으면 사용, 없으면 `plan.md`·`feedback.md`·직전 3화를 참고해 새로 쓴다.
-   대본은 `series/scripts/NNN.md`에 저장한다. 컷 수는 캐러셀 기준 **2~10장**(권장 6~8).
+5. **대본**: `series/`의 대본 MD에 해당 회차 대본이 있으면 그대로 사용한다. 없으면 기존 MD의 연재 계획·피드백·직전 3화를 참고해 쓰고, 기존 대본 MD의 형식을 따라 저장한다. 컷 수는 캐러셀 기준 **2~10장**(권장 6~8).
 6. **컷 제작**: `episodes/NNN/panels/01.html …`을 작성한다.
    - 각 파일은 1080×1350, `<link rel="stylesheet" href="../../../assets/toon.css">` 사용
-   - 캐릭터는 `characters.md`에 정의된 SVG 형태를 **매 회 동일하게** 재사용(일관성 최우선)
+   - 캐릭터는 `series/`의 캐릭터 MD에 정의된 SVG 형태를 **매 회 동일하게** 재사용(일관성 최우선)
    - 외부 URL(웹폰트, CDN 이미지) 금지 — 저장소 안의 자원만 사용
    - 1번 컷 = 표지(제목·회차), 마지막 컷 = 다음 화 예고 또는 팔로우 유도
 7. **렌더 & 검수**: `node tools/render_panels.mjs episodes/NNN` 후 **모든 jpg를 직접 열어 확인**한다.
