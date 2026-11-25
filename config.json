@@ -3,5 +3,6 @@
   "graph_version": "v23.0",
   "github_raw_base": "https://raw.githubusercontent.com/bjw131668-cmyk/instagram/main",
   "reel_share_to_feed": true,
-  "timezone": "Asia/Seoul"
+  "timezone": "Asia/Seoul",
+  "last_published_episode": 17
 }
