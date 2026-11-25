@@ -4,5 +4,6 @@
   "github_raw_base": "https://raw.githubusercontent.com/bjw131668-cmyk/instagram/main",
   "reel_share_to_feed": true,
   "timezone": "Asia/Seoul",
-  "last_published_episode": 17
+  "last_published_episode": 17,
+  "reel_mode": "manual"
 }

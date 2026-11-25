@@ -83,22 +83,38 @@ def full_caption(meta: dict, key: str) -> str:
     return f"{cap}\n\n{tags}".strip()
 
 
-def publish_carousel(ep: Path, meta: dict) -> dict:
-    imgs = sorted((ep / "out").glob("[0-9]*.jpg"))
-    if not 2 <= len(imgs) <= 10:
-        raise SystemExit(f"캐러셀은 이미지 2~10장이 필요합니다 (현재 {len(imgs)}장)")
-    for img in imgs:  # push 됐는지 미리 확인
-        u = raw_url(ep, img.name)
-        if requests.head(u, timeout=30).status_code != 200:
-            raise SystemExit(f"공개 URL에서 이미지를 찾을 수 없습니다. 먼저 git push 하세요: {u}")
-    children = [call("POST", f"{IG_USER}/media", image_url=raw_url(ep, i.name), is_carousel_item="true")["id"]
-                for i in imgs]
+def _carousel(ep: Path, meta: dict, names: list[str]) -> str:
+    children = [call("POST", f"{IG_USER}/media", image_url=raw_url(ep, n), is_carousel_item="true")["id"]
+                for n in names]
     for c in children:
         wait_ready(c)
-    parent = call("POST", f"{IG_USER}/media", media_type="CAROUSEL", children=",".join(children),
-                  caption=full_caption(meta, "caption"))["id"]
+    return call("POST", f"{IG_USER}/media", media_type="CAROUSEL", children=",".join(children),
+                caption=full_caption(meta, "caption"))["id"]
+
+
+def publish_carousel(ep: Path, meta: dict) -> dict:
+    # 00 표지, 01~10 대사 카드, 11 다음 화 예고 (사용자 형식 12장)
+    names = sorted(p.name for p in (ep / "out").glob("[0-9][0-9].jpg"))
+    for n in names:  # push 됐는지 미리 확인
+        u = raw_url(ep, n)
+        if requests.head(u, timeout=30).status_code != 200:
+            raise SystemExit(f"공개 URL에서 이미지를 찾을 수 없습니다. 먼저 git push 하세요: {u}")
+    note = None
+    try:
+        parent = _carousel(ep, meta, names)
+    except RuntimeError as e:
+        # Graph API 문서상 캐러셀은 10장까지. 거부되면 대사 카드 01~10만 올린다(설정으로 변경 가능)
+        if len(names) <= 10:
+            raise
+        fb = CFG.get("carousel_fallback", ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"])
+        names = [f"{x}.jpg" for x in fb]
+        note = f"12장 업로드 거부 → {len(names)}장으로 재시도: {str(e)[:200]}"
+        print(note, file=sys.stderr)
+        parent = _carousel(ep, meta, names)
     media_id = publish_container(parent)
-    res = {"media_id": media_id}
+    res = {"media_id": media_id, "images": names}
+    if note:
+        res["note"] = note
     if meta.get("pinned_comment"):
         res["comment_id"] = comment(media_id, meta["pinned_comment"])
     return res
@@ -110,6 +126,8 @@ def publish_reel(ep: Path, meta: dict) -> dict:
         raise SystemExit("reel.mp4 가 없습니다. make_reel.py 를 먼저 실행하세요.")
     common = dict(media_type="REELS", caption=full_caption(meta, "reel_caption"),
                   share_to_feed=str(CFG.get("reel_share_to_feed", True)).lower())
+    if (ep / "out" / "cover.jpg").exists():
+        common["cover_url"] = raw_url(ep, "cover.jpg")
     try:  # 1순위: 파일 직접 업로드 (resumable)
         cid = call("POST", f"{IG_USER}/media", upload_type="resumable", **common)["id"]
         data = video.read_bytes()
@@ -135,6 +153,10 @@ def cmd_publish(ep_dir: str, only: str | None) -> None:
     for kind, fn in (("carousel", publish_carousel), ("reel", publish_reel)):
         if only and only != kind:
             continue
+        if kind == "reel" and CFG.get("reel_mode", "manual") != "auto":
+            print("reel: 수동 모드 — 앱에서 추천 음원을 넣어 직접 올려 주세요: "
+                  + raw_url(ep, "reel.mp4"))
+            continue
         if kind in log:
             print(f"{kind}: 이미 업로드됨 ({log[kind]['media_id']}) — 건너뜀")
             continue
@@ -147,7 +169,8 @@ def cmd_publish(ep_dir: str, only: str | None) -> None:
 
 
 FEED_METRICS = ["reach", "views", "likes", "comments", "shares", "saved", "total_interactions"]
-REEL_METRICS = FEED_METRICS + ["ig_reels_avg_watch_time", "ig_reels_video_view_total_time"]
+REEL_METRICS = FEED_METRICS + ["ig_reels_avg_watch_time", "ig_reels_video_view_total_time",
+                               "reels_skip_rate", "follows", "profile_visits"]
 
 
 def media_insights(media_id: str, metrics: list[str]) -> dict:
